@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Hotel\Domain\DateRange;
+use App\Hotel\Reservations\DateRange;
 use PHPUnit\Framework\TestCase;
 
 final class DateRangeTest extends TestCase

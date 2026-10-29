@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Hotel\Booking\BookingService;
-use App\Hotel\Domain\DateRange;
-use App\Hotel\Notification\NotificationSender;
-use App\Hotel\Notification\SmsNotificationSender;
-use App\Hotel\Persistence\InMemoryReservationStore;
-use App\Hotel\Persistence\InMemoryRoomCatalog;
+use App\Hotel\Reservations\BookingService;
+use App\Hotel\Reservations\DateRange;
+use App\Hotel\Notifications\NotificationSender;
+use App\Hotel\Notifications\Internal\SmsNotificationSender;
+use App\Hotel\Reservations\Internal\InMemoryReservationStore;
+use App\Hotel\Rooms\Internal\InMemoryRoomCatalog;
 use App\Hotel\Support\NullPause;
-use App\Models\Guest;
-use App\Models\Room;
+use App\Hotel\Reservations\Guest;
+use App\Hotel\Rooms\Room;
 use Tests\Support\FakeNotificationSender;
 use Tests\TestCase;
 

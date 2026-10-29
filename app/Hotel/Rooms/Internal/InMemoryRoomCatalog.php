@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Hotel\Persistence;
+namespace App\Hotel\Rooms\Internal;
 
-use App\Models\Room;
+use App\Hotel\Rooms\Room;
+use App\Hotel\Rooms\RoomCatalog;
 use Illuminate\Database\Eloquent\Collection;
 
 /** A fixed list of rooms. Used by fast tests. */

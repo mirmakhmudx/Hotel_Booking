@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Hotel\Persistence;
+namespace App\Hotel\Rooms;
 
-use App\Models\Room;
 use Illuminate\Database\Eloquent\Collection;
 
-/** The rooms of the hotel. */
+/** Rooms' public contract: which rooms the hotel sells. */
 interface RoomCatalog
 {
     /** @return Collection<int, Room> */

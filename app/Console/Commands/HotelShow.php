@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Hotel\Persistence\ReservationStore;
+use App\Hotel\Reservations\ReservationStore;
 use Illuminate\Console\Command;
 
 /** R5 · View a booking by its id. */

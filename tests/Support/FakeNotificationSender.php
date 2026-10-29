@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
-use App\Hotel\Notification\NotificationSender;
-use App\Models\Reservation;
+use App\Hotel\Notifications\Confirmation;
+use App\Hotel\Notifications\NotificationSender;
 use RuntimeException;
 
 /** A stand-in sender for tests: remembers what it would send, or fails on purpose. */
@@ -18,12 +18,12 @@ final class FakeNotificationSender implements NotificationSender
     {
     }
 
-    public function sendConfirmation(Reservation $reservation): void
+    public function sendConfirmation(Confirmation $confirmation): void
     {
         if ($this->fail) {
             throw new RuntimeException('The mail server is down.');
         }
 
-        $this->sent[] = $reservation->code;
+        $this->sent[] = $confirmation->reservationId;
     }
 }

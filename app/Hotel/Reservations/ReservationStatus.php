@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Hotel\Domain;
+namespace App\Hotel\Reservations;
 
 /** A fixed list of allowed statuses: nothing else can be stored. */
 enum ReservationStatus: string

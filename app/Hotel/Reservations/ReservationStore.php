@@ -2,11 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Hotel\Persistence;
+namespace App\Hotel\Reservations;
 
-use App\Hotel\Domain\DateRange;
-use App\Models\Reservation;
-use App\Models\Room;
+use App\Hotel\Rooms\Room;
 
 /** Where reservations are kept. BookingService depends on this interface, not on the database. */
 interface ReservationStore

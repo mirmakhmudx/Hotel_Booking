@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Hotel\Booking\BookingService;
-use App\Hotel\Domain\DateRange;
-use App\Hotel\Notification\EmailNotificationSender;
-use App\Hotel\Persistence\ReservationStore;
+use App\Hotel\Reservations\BookingService;
+use App\Hotel\Reservations\DateRange;
+use App\Hotel\Notifications\Internal\EmailNotificationSender;
+use App\Hotel\Reservations\ReservationStore;
 use App\Hotel\Support\FiberPause;
 use App\Hotel\Support\FiberScheduler;
 use App\Hotel\Support\NullPause;
 use App\Hotel\Support\Pause;
-use App\Models\Guest;
-use App\Models\Reservation;
-use App\Models\Room;
+use App\Hotel\Reservations\Guest;
+use App\Hotel\Reservations\Reservation;
+use App\Hotel\Rooms\Room;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 
@@ -110,7 +110,7 @@ final class HotelDemo extends Command
     private function guest(string $name): Guest
     {
         return Guest::query()->firstOrCreate(
-            ['notifications' => strtolower($name) . '@example.com'],
+            ['email' => strtolower($name) . '@example.com'],
             ['name' => $name],
         );
     }

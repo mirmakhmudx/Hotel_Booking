@@ -2,22 +2,20 @@
 
 declare(strict_types=1);
 
-namespace App\Hotel\Booking;
+namespace App\Hotel\Reservations;
 
-use App\Hotel\Domain\DateRange;
-use App\Hotel\Notification\NotificationSender;
-use App\Hotel\Persistence\ReservationStore;
-use App\Hotel\Persistence\RoomCatalog;
+use App\Hotel\Notifications\Confirmation;
+use App\Hotel\Notifications\NotificationSender;
+use App\Hotel\Rooms\Room;
+use App\Hotel\Rooms\RoomCatalog;
 use App\Hotel\Support\Pause;
-use App\Models\Guest;
-use App\Models\Reservation;
-use App\Models\Room;
 use Illuminate\Database\Eloquent\Collection;
 use Throwable;
 
 /**
  * Runs each request in the right order: the sequence and activity diagrams as code.
- * Depends only on interfaces; the service provider decides which classes to plug in.
+ * Owns the booking rule. Depends only on interfaces and on the public contracts of Rooms and
+ * Notifications; the service provider decides which classes to plug in.
  *
  * Version 1 on purpose has NO transaction and NO lock between the check and the save,
  * so the race demo can show a double booking. P09 fixes this in the database.
@@ -60,7 +58,14 @@ final class BookingService
         $reservation = Reservation::place($guest, $room, $stay);
         $this->store->save($reservation);
 
-        return $this->confirm($reservation);
+        // Notifications gets its own message: the five fields it needs, not the Reservation.
+        return $this->confirm(new Confirmation(
+            $reservation->code,
+            (string) $guest->email,
+            (string) $room->number,
+            $stay->checkIn,
+            $stay->checkOut,
+        ));
     }
 
     /** R4 · Cancel: the reservation changes its own status and stays in the store as history. */
@@ -78,16 +83,16 @@ final class BookingService
     }
 
     /** R6: the booking is already saved, so a failed message must not undo or hide it. */
-    private function confirm(Reservation $reservation): BookingResult
+    private function confirm(Confirmation $confirmation): BookingResult
     {
         try {
-            $this->notifications->sendConfirmation($reservation);
+            $this->notifications->sendConfirmation($confirmation);
         } catch (Throwable $failure) {
             report($failure);
 
-            return BookingResult::accepted($reservation->code, notificationFailed: true);
+            return BookingResult::accepted($confirmation->reservationId, notificationFailed: true);
         }
 
-        return BookingResult::accepted($reservation->code);
+        return BookingResult::accepted($confirmation->reservationId);
     }
 }

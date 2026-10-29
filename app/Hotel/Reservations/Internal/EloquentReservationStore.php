@@ -2,11 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Hotel\Persistence;
+namespace App\Hotel\Reservations\Internal;
 
-use App\Hotel\Domain\DateRange;
-use App\Models\Reservation;
-use App\Models\Room;
+use App\Hotel\Reservations\DateRange;
+use App\Hotel\Reservations\Reservation;
+use App\Hotel\Reservations\ReservationStore;
+use App\Hotel\Rooms\Room;
 use Illuminate\Database\Eloquent\Collection;
 
 /**

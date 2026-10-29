@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
-use App\Models\Room;
+use App\Hotel\Rooms\Room;
 use Illuminate\Database\Seeder;
 
 class RoomSeeder extends Seeder

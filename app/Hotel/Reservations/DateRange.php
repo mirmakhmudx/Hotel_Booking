@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Hotel\Domain;
+namespace App\Hotel\Reservations;
 
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
