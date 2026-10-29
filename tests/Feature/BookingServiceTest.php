@@ -7,7 +7,7 @@ namespace Tests\Feature;
 use App\Hotel\Booking\BookingService;
 use App\Hotel\Domain\DateRange;
 use App\Hotel\Domain\ReservationStatus;
-use App\Hotel\Notification\SimulatedEmailSender;
+use App\Hotel\Notification\EmailNotificationSender;
 use App\Hotel\Persistence\ReservationStore;
 use App\Hotel\Support\FiberPause;
 use App\Hotel\Support\FiberScheduler;
@@ -26,7 +26,7 @@ final class BookingServiceTest extends TestCase
 
     private ReservationStore $store;
 
-    private SimulatedEmailSender $email;
+    private EmailNotificationSender $email;
 
     private Room $r7;
 
@@ -44,13 +44,13 @@ final class BookingServiceTest extends TestCase
 
         $this->r7 = Room::create(['number' => 'R7', 'type' => 'Standard']);
         $this->r8 = Room::create(['number' => 'R8', 'type' => 'Deluxe']);
-        $this->maya = Guest::create(['name' => 'Maya', 'email' => 'maya@example.com']);
-        $this->omar = Guest::create(['name' => 'Omar', 'email' => 'omar@example.com']);
-        $this->nora = Guest::create(['name' => 'Nora', 'email' => 'nora@example.com']);
+        $this->maya = Guest::create(['name' => 'Maya', 'notifications' => 'maya@example.com']);
+        $this->omar = Guest::create(['name' => 'Omar', 'notifications' => 'omar@example.com']);
+        $this->nora = Guest::create(['name' => 'Nora', 'notifications' => 'nora@example.com']);
 
-        $this->email = new SimulatedEmailSender();
+        $this->email = new EmailNotificationSender();
         $this->store = $this->app->make(ReservationStore::class);
-        $this->service = $this->app->makeWith(BookingService::class, ['email' => $this->email]);
+        $this->service = $this->app->makeWith(BookingService::class, ['notifications' => $this->email]);
     }
 
     public function test_r1_empty_hotel_shows_all_rooms(): void
@@ -151,7 +151,7 @@ final class BookingServiceTest extends TestCase
     public function test_race_two_simultaneous_requests_double_book_the_room(): void
     {
         $service = $this->app->makeWith(BookingService::class, [
-            'email' => $this->email,
+            'notifications' => $this->email,
             'pause' => new FiberPause(50),
         ]);
         $stay = $this->nov(12, 14);

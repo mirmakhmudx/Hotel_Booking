@@ -6,7 +6,7 @@ namespace App\Console\Commands;
 
 use App\Hotel\Booking\BookingService;
 use App\Hotel\Domain\DateRange;
-use App\Hotel\Notification\SimulatedEmailSender;
+use App\Hotel\Notification\EmailNotificationSender;
 use App\Hotel\Persistence\ReservationStore;
 use App\Hotel\Support\FiberPause;
 use App\Hotel\Support\FiberScheduler;
@@ -38,7 +38,7 @@ final class HotelDemo extends Command
 
     private function runDemo(): int
     {
-        $email = new SimulatedEmailSender();
+        $email = new EmailNotificationSender();
         $service = $this->service($email, new NullPause());
         $r7 = $this->room('R7');
         $r8 = $this->room('R8');
@@ -62,7 +62,7 @@ final class HotelDemo extends Command
     private function runRace(): int
     {
         // Each request now spends half a second between checking and saving.
-        $service = $this->service(new SimulatedEmailSender(), new FiberPause(500));
+        $service = $this->service(new EmailNotificationSender(), new FiberPause(500));
         $r7 = $this->room('R7');
         $maya = $this->guest('Maya');
         $omar = $this->guest('Omar');
@@ -92,9 +92,9 @@ final class HotelDemo extends Command
         return self::SUCCESS;
     }
 
-    private function service(SimulatedEmailSender $email, Pause $pause): BookingService
+    private function service(EmailNotificationSender $email, Pause $pause): BookingService
     {
-        return app()->makeWith(BookingService::class, ['email' => $email, 'pause' => $pause]);
+        return app()->makeWith(BookingService::class, ['notifications' => $email, 'pause' => $pause]);
     }
 
     private function nov(int $checkIn, int $checkOut): DateRange
@@ -110,7 +110,7 @@ final class HotelDemo extends Command
     private function guest(string $name): Guest
     {
         return Guest::query()->firstOrCreate(
-            ['email' => strtolower($name) . '@example.com'],
+            ['notifications' => strtolower($name) . '@example.com'],
             ['name' => $name],
         );
     }

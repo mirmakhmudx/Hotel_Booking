@@ -6,8 +6,8 @@ namespace App\Hotel\Notification;
 
 use App\Models\Reservation;
 
-/** Simulated: sends nothing and needs no network, it only counts confirmations. */
-final class SimulatedEmailSender implements EmailSender
+/** Added in P04 without changing BookingService. Simulated, like the email sender. */
+final class SmsNotificationSender implements NotificationSender
 {
     private int $sent = 0;
 

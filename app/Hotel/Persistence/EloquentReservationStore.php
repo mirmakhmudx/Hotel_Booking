@@ -14,10 +14,15 @@ use Illuminate\Database\Eloquent\Collection;
  *
  * The overlap rule is NOT repeated in SQL: we load the room's reservations and ask each one
  * Reservation::blocks(), which asks DateRange::overlaps(). One rule, one place.
- * P08/P09 move this check into the database.
+ * P09 moves this check into the database.
  */
 final class EloquentReservationStore implements ReservationStore
 {
+    public function count(): int
+    {
+        return Reservation::query()->count();
+    }
+
     public function hasOverlap(Room $room, DateRange $stay): bool
     {
         return $this->reservationsOf($room)

@@ -42,5 +42,10 @@ A booking can be looked up by its id.
 Check: R101 -> Maya, R7, 12-14 November, Confirmed.
 Proof: `php artisan hotel:show R101` (after `php artisan hotel:demo --race`) prints `R101: Maya, R7, 12 November - 14 November, Confirmed`
 
+## R6 - Failed message
+If the confirmation cannot be sent, the booking stays saved and Accepted, and the failure is reported.
+Check: the sender fails on purpose -> `Accepted R101`, the result has notificationFailed = true, the store still holds 1 reservation.
+Proof: test `test_a_failed_confirmation_keeps_the_booking` (tests/Unit/BookingServiceWithFakesTest.php)
+
 ## Automated proof
-`php artisan test` -> 16 passed (tests R1-R5, the five R3 examples, the email count and the race).
+`php artisan test` -> all tests pass (R1-R6, the R3 examples, the SMS sender, the race).

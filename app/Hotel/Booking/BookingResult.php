@@ -12,12 +12,13 @@ final readonly class BookingResult implements Stringable
     private function __construct(
         public BookingOutcome $outcome,
         public ?string $reservationCode = null,
+        public bool $notificationFailed = false,
     ) {
     }
 
-    public static function accepted(string $reservationCode): self
+    public static function accepted(string $reservationCode, bool $notificationFailed = false): self
     {
-        return new self(BookingOutcome::Accepted, $reservationCode);
+        return new self(BookingOutcome::Accepted, $reservationCode, $notificationFailed);
     }
 
     public static function unavailable(): self

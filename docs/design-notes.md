@@ -31,3 +31,35 @@ What happened: Maya and Omar both got Accepted (R101 and R102), so R7 has two Co
 | EmailSender | app/Hotel/Notification/EmailSender.php + SimulatedEmailSender.php |
 | BookingService, BookingResult | app/Hotel/Booking/ |
 | Demo and race | php artisan hotel:demo [--race], php artisan hotel:show R101 |
+
+# P04 design notes
+
+## Refactoring
+Refactoring changes how the code is organised, but not what the app does for the guest.
+Must stay the same:
+- the tests pass after every move,
+- the demo prints the same nine lines as in P03,
+- the race still double-books (refactoring does not fix bugs; P09 does).
+
+## What our code breaks
+- The interface was called EmailSender, but the hotel wants SMS too (O: open/closed). The name promised one way of sending; BookingService should only know "a notification". Renamed to NotificationSender.
+- There was no store without a database (D: dependency inversion), so every test needed PostgreSQL and was slow. Added InMemoryReservationStore.
+- A sender that throws after the reservation was saved would break Reserve and hide the saved booking from the caller. This is the new rule R6, fixed in Step 7.
+- A demo pause sits inside Reserve() on purpose, for the race. It goes in P09.
+
+## Laravel mapping (after P04)
+| Diagram class | Laravel file |
+|---|---|
+| BookingService | app/Hotel/Booking/BookingService.php |
+| IReservationStore | app/Hotel/Persistence/ReservationStore.php |
+| InMemoryReservationStore | app/Hotel/Persistence/InMemoryReservationStore.php |
+| EloquentReservationStore (PostgreSQL) | app/Hotel/Persistence/EloquentReservationStore.php |
+| INotificationSender | app/Hotel/Notification/NotificationSender.php |
+| EmailNotificationSender, SmsNotificationSender | app/Hotel/Notification/ |
+| FakeNotificationSender (tests only) | tests/Support/FakeNotificationSender.php |
+| Composition root | app/Providers/HotelServiceProvider.php |
+
+## Proof
+- tests: all pass (the old tests unchanged, plus 8 new tests without a database)
+- demo: the same nine lines as in P03
+- race: still "Double booking!"
