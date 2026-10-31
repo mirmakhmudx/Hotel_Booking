@@ -169,3 +169,20 @@ The HTTP API uses only public contracts of the modules (tests/Unit/HttpBorderTes
 - Database for the running app: the local PostgreSQL (database hotel_booking). docker-compose.yml is
   the Docker version of the same database; Docker is not installed on this Mac, so it was not run here.
 - Race: still "Double booking!" (P09 fixes it).
+
+# P08 design notes
+
+## Cache rule
+Booking never reads the cache. Only the free-room search does; PostgreSQL decides every booking.
+
+## What changed
+- app/Api/: KeyValueStore (3 commands), LaravelKeyValueStore, AvailabilityCache, Stats, CountingReservationStore.
+- GET /stats: four counters. They live in the cache store, because `php artisan serve` starts a new process per request.
+- HOTEL_CACHE=false switches the search cache off, to measure the search without it.
+- Redis and Docker were not available on this Mac: the file cache store was used (CACHE_STORE=file).
+
+## After
+- Tests: 41 green (the 34 from P07, 4 cache-logic tests, 3 cache API tests).
+- Measurements: 2,000 database queries without the cache, 2 with it (docs/cache-experiment.md).
+- Stale result seen with the four requests and fixed by the version number.
+- Race: still "Double booking!" (P09 fixes it).

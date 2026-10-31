@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Api\AvailabilityCache;
+use App\Api\Stats;
 use App\Hotel\Reservations\BookingOutcome;
 use App\Hotel\Reservations\BookingResult;
 use App\Hotel\Reservations\BookingService;
@@ -17,9 +19,9 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 /**
- * The HTTP API: three endpoints that turn HTTP requests into BookingService calls and back.
- * It lives outside the four modules and uses only their public contracts
- * (HotelServiceProvider decides which classes stand behind them).
+ * The HTTP API: three endpoints that turn HTTP requests into BookingService calls and back,
+ * and GET /stats with what the searches cost. It lives outside the four modules and uses only
+ * their public contracts (HotelServiceProvider decides which classes stand behind them).
  */
 final class HotelApiController extends Controller
 {
@@ -34,7 +36,15 @@ final class HotelApiController extends Controller
     public function __construct(
         private readonly BookingService $booking,
         private readonly RoomCatalog $rooms,
+        private readonly Stats $stats,
+        private readonly AvailabilityCache $cache,
     ) {
+    }
+
+    /** GET /stats: what the searches cost since the cache was last cleared (P08). */
+    public function stats(): JsonResponse
+    {
+        return response()->json($this->stats->asArray());
     }
 
     /** GET /rooms/availability?checkIn=...&checkOut=...&limit=20&after=R7 (R1) */
@@ -62,8 +72,29 @@ final class HotelApiController extends Controller
         $after = $request->query('after', '');
         $after = is_string($after) ? $after : '';
 
+        $this->stats->add('searches');
+
+        // Cache-aside (L04): the cache first; only on a miss ask PostgreSQL, then keep a copy.
+        // HOTEL_CACHE=false (in .env) skips the cache, to measure the search without it.
+        $useCache = (bool) config('hotel.cache');
+        $key = $this->cache->key($checkIn, $checkOut);
+        $cached = $useCache ? $this->cache->get($key) : null;
+
+        if ($cached !== null) {
+            $this->stats->add('cacheHits');
+            $numbers = $cached === '' ? [] : explode(',', $cached);
+            $free = $this->rooms->all()->filter(fn (Room $room): bool => in_array($room->number, $numbers, true));
+        } else {
+            $free = $this->booking->findFreeRooms($stay);
+
+            if ($useCache) {
+                $this->stats->add('cacheMisses');
+                $this->cache->set($key, $free->pluck('number')->sort(fn (string $a, string $b): int => strcmp($a, $b))->implode(','));
+            }
+        }
+
         // Cursor pagination (L04): the rooms after the last one the client has seen, in text order.
-        $rest = $this->booking->findFreeRooms($stay)
+        $rest = $free
             ->filter(fn (Room $room): bool => strcmp((string) $room->number, $after) > 0)
             ->sortBy(fn (Room $room): string => (string) $room->number, SORT_STRING)
             ->values();
@@ -106,7 +137,13 @@ final class HotelApiController extends Controller
             ['name' => $body['guestName']],
         );
 
-        return $this->toHttp($this->booking->reserve($guest, $room, new DateRange($checkIn, $checkOut)));
+        $result = $this->booking->reserve($guest, $room, new DateRange($checkIn, $checkOut));
+
+        if ($result->isAccepted()) {
+            $this->cache->invalidate(); // after the booking is saved in PostgreSQL
+        }
+
+        return $this->toHttp($result);
     }
 
     /** DELETE /reservations/{id} (R4) */
@@ -115,6 +152,8 @@ final class HotelApiController extends Controller
         if (! $this->booking->cancel($id)) {
             return Problem::response(404, 'NotFound', 'There is no confirmed reservation ' . $id . '.');
         }
+
+        $this->cache->invalidate(); // after the cancel is saved in PostgreSQL
 
         return response()->noContent();
     }

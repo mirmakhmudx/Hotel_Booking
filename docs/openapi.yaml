@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hotel booking API
-  version: 1.0.0
+  version: 1.1.0
   description: Search free rooms, book a room, cancel a booking. Errors use problem details (RFC 9457).
 servers:
   - url: http://localhost:5080
@@ -69,6 +69,18 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
+  /stats:
+    get:
+      operationId: getStats
+      summary: What the searches cost since the cache was last cleared
+      description: Four counters for measuring the search. databaseQueries counts every question the reservation store sends to PostgreSQL.
+      responses:
+        "200":
+          description: The four counters.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Stats" }
+              example: { searches: 1000, databaseQueries: 2000, cacheHits: 0, cacheMisses: 0 }
   /openapi.yaml:
     get:
       operationId: getContract
@@ -118,3 +130,11 @@ components:
         title: { type: string, example: Unavailable }
         status: { type: integer, example: 409 }
         detail: { type: string }
+    Stats:
+      type: object
+      required: [searches, databaseQueries, cacheHits, cacheMisses]
+      properties:
+        searches: { type: integer, minimum: 0, description: Answers of GET /rooms/availability that reached the search. }
+        databaseQueries: { type: integer, minimum: 0, description: Questions the reservation store sent to PostgreSQL. }
+        cacheHits: { type: integer, minimum: 0, description: Searches answered from a copy in the cache. }
+        cacheMisses: { type: integer, minimum: 0, description: Searches that found no copy and asked PostgreSQL. }
