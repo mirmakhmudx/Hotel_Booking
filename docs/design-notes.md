@@ -63,3 +63,41 @@ Must stay the same:
 - tests: all pass (the old tests unchanged, plus 8 new tests without a database)
 - demo: the same nine lines as in P03
 - race: still "Double booking!"
+
+# P06 design notes
+
+## Before
+
+- Tests: 24 green (8 behaviour tests in BookingServiceWithFakesTest, 16 others).
+- Demo (php artisan hotel:demo): the nine lines, ending with "Confirmation emails sent: 2".
+- Race (php artisan hotel:demo --race): "Double booking!" (P09 fixes it).
+
+## Modules
+
+| Module | Public contract (others may use) | Internal code (only the module, the wiring and the tests) |
+|---|---|---|
+| Rooms | Room, RoomCatalog | InMemoryRoomCatalog, EloquentRoomCatalog |
+| Reservations | BookingService, BookingResult, BookingOutcome, Reservation, Guest, DateRange, ReservationStatus, ReservationStore | InMemoryReservationStore, EloquentReservationStore |
+| Payments | PaymentStatus, PaymentService | SimulatedPaymentService |
+| Notifications | Confirmation, NotificationSender | EmailNotificationSender, SmsNotificationSender |
+
+The wiring is App\Providers\HotelServiceProvider. App\Hotel\Support (Pause, FiberPause,
+FiberScheduler) only serves the race demo and stays outside the modules until P09.
+
+## Architecture rules
+
+1. Reservations uses only the public contracts of other modules: BookingService may use the Notifications contract, never the email sender.
+2. Rooms does not depend on any other module.
+3. Payments and Notifications do not depend on Reservations: the arrows point one way.
+
+## Broken on purpose
+
+Rule 1 failed when BookingService named EmailNotificationSender directly. The message
+named app/Hotel/Reservations/BookingService.php and App\Hotel\Notifications\Internal\EmailNotificationSender.
+The behaviour tests stayed green: only the architecture test sees a wrong dependency.
+
+## After
+
+- Tests: 27 green (the 24 from before and the 3 architecture checks).
+- Demo: the same nine lines as in "Before".
+- Race: still "Double booking!" (P09 fixes it).
