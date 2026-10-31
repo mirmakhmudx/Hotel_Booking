@@ -101,3 +101,71 @@ The behaviour tests stayed green: only the architecture test sees a wrong depend
 - Tests: 27 green (the 24 from before and the 3 architecture checks).
 - Demo: the same nine lines as in "Before".
 - Race: still "Double booking!" (P09 fixes it).
+
+# P07 design notes
+
+## Why HTTP
+The booking rules were only reachable from the command line. HTTP lets a website and the reception desk
+use the same rules. The controller only translates: HTTP request -> BookingService call -> HTTP answer.
+It never repeats a rule (the overlap rule stays in DateRange, the booking rule in BookingService).
+
+## Outcome -> HTTP status
+
+| BookingService answer | HTTP |
+|---|---|
+| Accepted | 201 {id, status, notificationFailed} |
+| Unavailable | 409 problem Unavailable |
+| InvalidDates | 400 problem InvalidDates |
+| cancel true / false | 204 / 404 problem NotFound |
+| unknown room, bad body, bad limit | 400 problem UnknownRoom / InvalidRequest |
+
+## Laravel mapping (after P07)
+
+| Part | File |
+|---|---|
+| The three endpoints | app/Http/Controllers/HotelApiController.php |
+| Problem details | app/Http/Problem.php |
+| Routes (no /api prefix) | routes/api.php, bootstrap/app.php |
+| The contract | docs/openapi.yaml (also served at GET /openapi.yaml) |
+| Database | docker-compose.yml (PostgreSQL 18, host port 5433); tables from the migrations |
+
+## Rule
+The HTTP API uses only public contracts of the modules (tests/Unit/HttpBorderTest.php).
+
+# P07 design notes
+
+## Why HTTP
+The booking rules were only reachable from the command line. HTTP lets a website and the reception desk
+use the same rules. The controller only translates: HTTP request -> BookingService call -> HTTP answer.
+It never repeats a rule (the overlap rule stays in DateRange, the booking rule in BookingService).
+
+## Outcome -> HTTP status
+
+| BookingService answer | HTTP |
+|---|---|
+| Accepted | 201 {id, status, notificationFailed} |
+| Unavailable | 409 problem Unavailable |
+| InvalidDates | 400 problem InvalidDates |
+| cancel true / false | 204 / 404 problem NotFound |
+| unknown room, bad body, bad limit | 400 problem UnknownRoom / InvalidRequest |
+
+## Laravel mapping (after P07)
+
+| Part | File |
+|---|---|
+| The three endpoints | app/Http/Controllers/HotelApiController.php |
+| Problem details | app/Http/Problem.php |
+| Routes (no /api prefix) | routes/api.php, bootstrap/app.php |
+| The contract | docs/openapi.yaml (also served at GET /openapi.yaml) |
+| Database | docker-compose.yml (PostgreSQL 18, host port 5433); tables from the migrations |
+
+## Rule
+The HTTP API uses only public contracts of the modules (tests/Unit/HttpBorderTest.php).
+
+## After (P07)
+
+- Tests: 34 green (the 27 from P06, 1 HTTP border check, 6 API tests).
+- Eight requests in docs/api-check.md: 200, 201, 200 (only R8), 409, 400, 400, 204, 404.
+- Database for the running app: the local PostgreSQL (database hotel_booking). docker-compose.yml is
+  the Docker version of the same database; Docker is not installed on this Mac, so it was not run here.
+- Race: still "Double booking!" (P09 fixes it).

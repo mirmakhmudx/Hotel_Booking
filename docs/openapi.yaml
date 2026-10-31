@@ -1,0 +1,120 @@
+openapi: 3.1.0
+info:
+  title: Hotel booking API
+  version: 1.0.0
+  description: Search free rooms, book a room, cancel a booking. Errors use problem details (RFC 9457).
+servers:
+  - url: http://localhost:5080
+paths:
+  /rooms/availability:
+    get:
+      operationId: findFreeRooms
+      summary: The rooms that are free for a stay (R1)
+      description: The stay is half-open, check-in day included, check-out day excluded. Rooms come in text order, one page at a time (cursor pagination).
+      parameters:
+        - { name: checkIn, in: query, required: true, schema: { type: string, format: date }, example: "2026-11-12" }
+        - { name: checkOut, in: query, required: true, schema: { type: string, format: date }, example: "2026-11-14" }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: after, in: query, required: false, description: The last room number the client has seen., schema: { type: string }, example: R7 }
+      responses:
+        "200":
+          description: One page of free rooms. next is the cursor for the next page, or null.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Availability" }
+              example: { checkIn: "2026-11-12", checkOut: "2026-11-14", rooms: [{ number: R7, type: Standard }, { number: R8, type: Deluxe }], next: null }
+        "400":
+          description: InvalidDates or InvalidRequest (bad limit).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+  /reservations:
+    post:
+      operationId: reserve
+      summary: Book a free room (R2, R3, R6)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NewReservation" }
+            example: { guestName: Maya, guestEmail: maya@example.com, room: R7, checkIn: "2026-11-12", checkOut: "2026-11-14" }
+      responses:
+        "201":
+          description: Booked. notificationFailed is true when the confirmation message could not be sent; the booking stays saved (R6).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Reservation" }
+              example: { id: R101, status: Confirmed, notificationFailed: false }
+        "400":
+          description: InvalidRequest, InvalidDates or UnknownRoom.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+        "409":
+          description: Unavailable. The room is booked for at least one night of this stay.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+  /reservations/{id}:
+    delete:
+      operationId: cancel
+      summary: Cancel a booking (R4)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string }, example: R101 }
+      responses:
+        "204":
+          description: Cancelled. The reservation is kept as history and no longer blocks the room.
+        "404":
+          description: There is no confirmed reservation with this id.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+  /openapi.yaml:
+    get:
+      operationId: getContract
+      summary: This contract
+      responses:
+        "200":
+          description: The OpenAPI document.
+          content:
+            application/yaml:
+              schema: { type: string }
+components:
+  schemas:
+    Room:
+      type: object
+      required: [number, type]
+      properties:
+        number: { type: string, example: R7 }
+        type: { type: string, enum: [Standard, Deluxe] }
+    Availability:
+      type: object
+      required: [checkIn, checkOut, rooms, next]
+      properties:
+        checkIn: { type: string, format: date }
+        checkOut: { type: string, format: date }
+        rooms: { type: array, items: { $ref: "#/components/schemas/Room" } }
+        next: { type: [string, "null"] }
+    NewReservation:
+      type: object
+      required: [guestName, guestEmail, room, checkIn, checkOut]
+      properties:
+        guestName: { type: string, minLength: 1 }
+        guestEmail: { type: string, minLength: 1 }
+        room: { type: string, example: R7 }
+        checkIn: { type: string, format: date }
+        checkOut: { type: string, format: date }
+    Reservation:
+      type: object
+      required: [id, status, notificationFailed]
+      properties:
+        id: { type: string, example: R101 }
+        status: { type: string, enum: [Confirmed] }
+        notificationFailed: { type: boolean }
+    Problem:
+      type: object
+      required: [title, status, detail]
+      properties:
+        title: { type: string, example: Unavailable }
+        status: { type: integer, example: 409 }
+        detail: { type: string }
