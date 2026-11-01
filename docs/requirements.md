@@ -28,7 +28,7 @@ Proof:
 - `Nora books R7 14-16 Nov: Accepted R102`
 - `Omar books R8 15-15 Nov: InvalidDates`
 
-Known issue of version 1: two requests at the same moment can both pass the check (see the race demo). P09 fixes it in the database.
+Version 1 had a race: two requests at the same moment could both pass the check. P09 fixes it in the database (see docs/p09-protect-the-last-seat.md).
 
 ## R4 - Cancel
 A booking can be cancelled. It is kept as Cancelled and no longer blocks the room.

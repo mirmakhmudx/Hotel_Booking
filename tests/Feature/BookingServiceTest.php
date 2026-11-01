@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Hotel\Reservations\BookingService;
+use App\Hotel\Reservations\ConcurrencyStrategy;
+use App\Hotel\Reservations\Internal\NoDoubleBookingConstraint;
+use Illuminate\Database\QueryException;
 use App\Hotel\Reservations\DateRange;
 use App\Hotel\Reservations\ReservationStatus;
 use App\Hotel\Notifications\Internal\EmailNotificationSender;
@@ -147,12 +150,51 @@ final class BookingServiceTest extends TestCase
         $this->assertSame(2, $this->email->sent());
     }
 
-    /** KNOWN ISSUE of version 1: it documents the bug on purpose. P09 fixes it and flips this test. */
-    public function test_race_two_simultaneous_requests_double_book_the_room(): void
+    /**
+     * The BUG, kept on purpose (P09 step 1). Two Fibers share one connection, so this only proves the
+     * check-then-save gap of version 1: with no strategy and no constraint, both requests are accepted.
+     * It does NOT test the repairs: those need two real connections (ConcurrentBookingTest).
+     */
+    public function test_race_without_any_protection_double_books_the_room(): void
+    {
+        NoDoubleBookingConstraint::drop();
+
+        try {
+            $this->runFiberRace(ConcurrencyStrategy::Unprotected);
+
+            $this->assertSame(2, $this->store->countConfirmed($this->r7, $this->nov(12, 14)));
+        } finally {
+            Reservation::truncate();
+            NoDoubleBookingConstraint::add();
+        }
+    }
+
+    /** The last line of defence: even the unprotected code cannot double-book while the constraint exists. */
+    public function test_the_database_constraint_refuses_the_second_confirmed_booking(): void
+    {
+        $this->assertTrue(NoDoubleBookingConstraint::exists());
+
+        $this->expectException(QueryException::class);
+        $this->expectExceptionMessage(NoDoubleBookingConstraint::NAME);
+
+        $this->runFiberRace(ConcurrencyStrategy::Unprotected);
+    }
+
+    public function test_the_constraint_allows_the_check_out_day_and_cancelled_bookings(): void
+    {
+        $this->service->reserve($this->maya, $this->r7, $this->nov(12, 14));
+        $this->service->reserve($this->nora, $this->r7, $this->nov(14, 16)); // shares no night: allowed
+
+        $this->service->cancel('R101');
+        $this->assertSame('Accepted R103', (string) $this->service->reserve($this->omar, $this->r7, $this->nov(12, 14)));
+    }
+
+    private function runFiberRace(ConcurrencyStrategy $strategy): void
     {
         $service = $this->app->makeWith(BookingService::class, [
             'notifications' => $this->email,
             'pause' => new FiberPause(50),
+            'strategy' => $strategy,
         ]);
         $stay = $this->nov(12, 14);
 
@@ -160,8 +202,6 @@ final class BookingServiceTest extends TestCase
         $scheduler->spawn(0, fn () => $service->reserve($this->maya, $this->r7, $stay));
         $scheduler->spawn(10, fn () => $service->reserve($this->omar, $this->r7, $stay));
         $scheduler->run();
-
-        $this->assertSame(2, $this->store->countConfirmed($this->r7, $stay));
     }
 
     private function nov(int $checkIn, int $checkOut): DateRange

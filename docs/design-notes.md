@@ -186,3 +186,12 @@ Booking never reads the cache. Only the free-room search does; PostgreSQL decide
 - Measurements: 2,000 database queries without the cache, 2 with it (docs/cache-experiment.md).
 - Stale result seen with the four requests and fixed by the version number.
 - Race: still "Double booking!" (P09 fixes it).
+
+# P09 design notes
+
+See docs/p09-protect-the-last-seat.md for the trace, the comparison of the three repairs and the evidence.
+
+- ReservationStore::placeIfFree() replaces the two calls hasOverlap + save in BookingService::reserve.
+- ConcurrencyStrategy: unprotected (v1, kept to show the bug), atomic, optimistic, lock (default).
+- The database has the last word: exclusion constraint reservations_no_double_booking.
+- Real races: php artisan hotel:race; tests/Feature/ConcurrentBookingTest.php (two processes per pair).

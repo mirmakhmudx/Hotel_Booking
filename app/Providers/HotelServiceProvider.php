@@ -13,6 +13,7 @@ use App\Hotel\Notifications\Internal\EmailNotificationSender;
 use App\Hotel\Notifications\NotificationSender;
 use App\Hotel\Payments\Internal\SimulatedPaymentService;
 use App\Hotel\Payments\PaymentService;
+use App\Hotel\Reservations\ConcurrencyStrategy;
 use App\Hotel\Reservations\Internal\EloquentReservationStore;
 use App\Hotel\Reservations\ReservationStore;
 use App\Hotel\Rooms\Internal\EloquentRoomCatalog;
@@ -39,6 +40,8 @@ final class HotelServiceProvider extends ServiceProvider
         $this->app->singleton(NotificationSender::class, EmailNotificationSender::class); // switch to SMS: change this one line
         $this->app->bind(PaymentService::class, SimulatedPaymentService::class);
         $this->app->bind(Pause::class, NullPause::class);
+        // P09: HOTEL_CONCURRENCY=unprotected|atomic|optimistic|lock (default lock)
+        $this->app->bind(ConcurrencyStrategy::class, fn (): ConcurrencyStrategy => ConcurrencyStrategy::from((string) config('hotel.concurrency', 'lock')));
 
         // P08: the cache and the counters live in Laravel's cache store (CACHE_STORE in .env).
         $this->app->singleton(KeyValueStore::class, fn ($app): KeyValueStore => new LaravelKeyValueStore($app->make(CacheRepository::class)));

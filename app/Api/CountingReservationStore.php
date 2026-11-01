@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Api;
 
+use App\Hotel\Reservations\ConcurrencyStrategy;
 use App\Hotel\Reservations\DateRange;
 use App\Hotel\Reservations\Reservation;
 use App\Hotel\Reservations\ReservationStore;
 use App\Hotel\Rooms\Room;
+use App\Hotel\Support\Pause;
 
 /**
  * Passes every call on to the real store and counts it: each call is one question to the database.
@@ -53,5 +55,13 @@ final class CountingReservationStore implements ReservationStore
         $this->stats->add('databaseQueries');
 
         return $this->store->countConfirmed($room, $stay);
+    }
+
+    /** Counted as one call; the real store may send several statements (see docs/p09-protect-the-last-seat.md). */
+    public function placeIfFree(Reservation $reservation, ConcurrencyStrategy $strategy, Pause $pause): bool
+    {
+        $this->stats->add('databaseQueries');
+
+        return $this->store->placeIfFree($reservation, $strategy, $pause);
     }
 }

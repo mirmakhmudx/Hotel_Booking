@@ -17,8 +17,8 @@ use Throwable;
  * Owns the booking rule. Depends only on interfaces and on the public contracts of Rooms and
  * Notifications; the service provider decides which classes to plug in.
  *
- * Version 1 on purpose has NO transaction and NO lock between the check and the save,
- * so the race demo can show a double booking. P09 fixes this in the database.
+ * P09: the check and the save are no longer two steps here. ReservationStore::placeIfFree() does both
+ * as one safe step, using the chosen ConcurrencyStrategy; the database has the last word.
  */
 final class BookingService
 {
@@ -27,6 +27,7 @@ final class BookingService
         private readonly ReservationStore $store,
         private readonly NotificationSender $notifications,
         private readonly Pause $pause,
+        private readonly ConcurrencyStrategy $strategy = ConcurrencyStrategy::RowLock,
     ) {
     }
 
@@ -49,14 +50,11 @@ final class BookingService
             return BookingResult::invalidDates();
         }
 
-        if ($this->store->hasOverlap($room, $stay)) {
-            return BookingResult::unavailable();
-        }
-
-        $this->pause->wait(); // check ... gap ... act
-
         $reservation = Reservation::place($guest, $room, $stay);
-        $this->store->save($reservation);
+
+        if (! $this->store->placeIfFree($reservation, $this->strategy, $this->pause)) {
+            return BookingResult::unavailable(); // nothing was saved
+        }
 
         // Notifications gets its own message: the five fields it needs, not the Reservation.
         return $this->confirm(new Confirmation(

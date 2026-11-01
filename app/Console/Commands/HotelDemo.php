@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Hotel\Reservations\BookingService;
+use App\Hotel\Reservations\ConcurrencyStrategy;
+use App\Hotel\Reservations\Internal\NoDoubleBookingConstraint;
 use App\Hotel\Reservations\DateRange;
 use App\Hotel\Notifications\Internal\EmailNotificationSender;
 use App\Hotel\Reservations\ReservationStore;
@@ -22,7 +24,7 @@ final class HotelDemo extends Command
 {
     protected $signature = 'hotel:demo {--race : Two guests book the same room at the same moment}';
 
-    protected $description = 'P03 demo: the requirement examples, or the double-booking race (clears all reservations first)';
+    protected $description = 'P03 demo: the requirement examples, or the version 1 double-booking race with Fibers (clears all reservations first). The real, fixed race is hotel:race.';
 
     public function __construct(private readonly ReservationStore $store)
     {
@@ -33,7 +35,22 @@ final class HotelDemo extends Command
     {
         Reservation::truncate(); // fresh start: ids begin at R101 again
 
-        return $this->option('race') ? $this->runRace() : $this->runDemo();
+        if (! $this->option('race')) {
+            return $this->runDemo();
+        }
+
+        // P09: this demo shows the UNPROTECTED version 1, so the database safety net is lifted for the run.
+        $hadConstraint = NoDoubleBookingConstraint::exists();
+        NoDoubleBookingConstraint::drop();
+
+        try {
+            return $this->runRace();
+        } finally {
+            if ($hadConstraint) {
+                Reservation::truncate(); // the demo left a double booking; the constraint cannot be added with it
+                NoDoubleBookingConstraint::add();
+            }
+        }
     }
 
     private function runDemo(): int
@@ -62,7 +79,7 @@ final class HotelDemo extends Command
     private function runRace(): int
     {
         // Each request now spends half a second between checking and saving.
-        $service = $this->service(new EmailNotificationSender(), new FiberPause(500));
+        $service = $this->service(new EmailNotificationSender(), new FiberPause(500), ConcurrencyStrategy::Unprotected);
         $r7 = $this->room('R7');
         $maya = $this->guest('Maya');
         $omar = $this->guest('Omar');
@@ -86,15 +103,21 @@ final class HotelDemo extends Command
         $confirmed = $this->store->countConfirmed($r7, $stay);
         $this->line("Confirmed reservations for R7 on 12-14 Nov: {$confirmed}");
         $this->line($confirmed > 1
-            ? 'Double booking! Both requests checked before either one saved.'
+            ? 'Double booking! Both requests checked before either one saved. (Unprotected version 1; the fix: php artisan hotel:race)'
             : 'Only one guest has R7.');
 
         return self::SUCCESS;
     }
 
-    private function service(EmailNotificationSender $email, Pause $pause): BookingService
+    private function service(EmailNotificationSender $email, Pause $pause, ?ConcurrencyStrategy $strategy = null): BookingService
     {
-        return app()->makeWith(BookingService::class, ['notifications' => $email, 'pause' => $pause]);
+        $arguments = ['notifications' => $email, 'pause' => $pause];
+
+        if ($strategy !== null) {
+            $arguments['strategy'] = $strategy;
+        }
+
+        return app()->makeWith(BookingService::class, $arguments);
     }
 
     private function nov(int $checkIn, int $checkOut): DateRange
