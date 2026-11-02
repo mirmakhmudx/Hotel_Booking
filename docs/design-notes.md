@@ -195,3 +195,12 @@ See docs/p09-protect-the-last-seat.md for the trace, the comparison of the three
 - ConcurrencyStrategy: unprotected (v1, kept to show the bug), atomic, optimistic, lock (default).
 - The database has the last word: exclusion constraint reservations_no_double_booking.
 - Real races: php artisan hotel:race; tests/Feature/ConcurrentBookingTest.php (two processes per pair).
+
+## After (P08, measured)
+- Without the cache: 1,000 searches = 2,000 database queries, 124.2 ms average, 145.7 ms p95.
+- With the cache: 8 database queries, 128.7 ms average, 164.1 ms p95. Fewer queries, not a faster request on this laptop.
+
+## After (P09)
+- Tests: 52 green (195 assertions).
+- hotel:race, 100 pairs of real processes: unprotected 100 double bookings, atomic insert 93 (without the constraint),
+  optimistic 0, row lock 0; with the constraint on: 0 for all four (docs/p09-protect-the-last-seat.md, section 4b).

@@ -78,3 +78,20 @@ PostgreSQL 16, plain-PDO re-implementation of the same SQL, two processes per pa
 Read it like this: the constraint alone already prevents the oversell, but the loser gets a database error instead of a clean answer; the atomic insert only becomes correct *because of* the constraint (here it maps the refusal to `Unavailable`); optimistic and lock keep the invariant on their own and give the loser a clean `Unavailable`.
 
 ### 4b. Your runs (fill in from your own machine - do not copy 4a)
+
+Run on my Mac: PHP 8.3, local PostgreSQL, `php artisan hotel:race --strategy=all --pairs=100` (each pair = two separate PHP processes, released together).
+`php artisan test`: 52 passed (195 assertions).
+
+| Strategy | constraint OFF: double bookings | constraint ON: double bookings |
+|---|---|---|
+| unprotected | **100 / 100** | 0 / 100 (second guest stopped by the database: 100) |
+| atomic insert | **93 / 100** (exactly one booking in only 7 pairs) | 0 / 100 (loser got `Unavailable`) |
+| optimistic | 0 / 100 | 0 / 100 |
+| row lock | 0 / 100 | 0 / 100 |
+
+What it shows:
+- Version 1 (unprotected) double-booked in every pair: the check-then-act gap is real, not a theory.
+- The atomic insert alone is NOT a repair: two simultaneous statements both passed `NOT EXISTS` in 93 of 100 pairs. It is only correct together with the exclusion constraint, which refuses the second row (23P01); `atomicInsert` maps that refusal to `Unavailable`, which is why the counter "stopped by the database" shows 0 for it although the database did stop it.
+- Optimistic and row lock kept the invariant on their own (0 of 100 without the constraint) and gave the loser a clean `Unavailable`.
+- No deadlock (40P01) and no other error appeared in these runs.
+- The constraint is the last line of defence for every strategy: with it on, even the unprotected code left exactly one booking in 100 of 100 pairs.

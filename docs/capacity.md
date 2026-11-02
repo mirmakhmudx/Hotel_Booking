@@ -30,7 +30,11 @@ The search is the busiest part: about 99% of all database questions.
 
 The first thing that limits the app is the number of database questions per search. A cache for the search is the first idea to try (P08), after measuring it.
 
-## To measure later
+## Measured (P08)
 
-- How many milliseconds does a search take (average and p95)?
-- How many database questions does one search really send?
+One user, two rooms, 1,000 searches one after another on a laptop (docs/cache-experiment.md):
+
+- A search takes about 124 ms on average and 146 ms p95 without a cache (164 ms p95 with it). Most of that is the development
+  server booting Laravel, not the database. S1 (p95 <= 1 s) is met.
+- One search sends 2 database questions (one per room), exactly as estimated: 1,000 searches = 2,000 questions.
+  With the cache: 8 questions (4 misses, because the run was longer than the 30 s TTL).
