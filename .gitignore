@@ -33,3 +33,5 @@ Thumbs.db
 *.orig
 *.bak
 /storage/framework/hotel-race.lock
+
+.env.testing
