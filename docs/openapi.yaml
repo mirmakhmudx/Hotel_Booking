@@ -98,7 +98,10 @@ components:
       required: [number, type]
       properties:
         number: { type: string, example: R7 }
-        type: { type: string, enum: [Standard, Deluxe] }
+        type:
+          type: string
+          description: Catalog data from the rooms table, such as Standard or Deluxe. A new type needs no change to the API.
+          example: Standard
     Availability:
       type: object
       required: [checkIn, checkOut, rooms, next]
@@ -127,7 +130,10 @@ components:
       type: object
       required: [title, status, detail]
       properties:
-        title: { type: string, example: Unavailable }
+        title:
+          type: string
+          enum: [Unavailable, InvalidDates, UnknownRoom, InvalidRequest, NotFound]
+          description: The error's name. Clients compare this value; detail is a sentence for people and may change.
         status: { type: integer, example: 409 }
         detail: { type: string }
     Stats:
